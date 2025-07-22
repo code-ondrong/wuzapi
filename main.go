@@ -34,8 +34,8 @@ type server struct {
 
 // Replace the global variables
 var (
-	address = flag.String("address", "0.0.0.0", "Bind IP Address")
-	// port          = flag.String("port", "8080", "Listen Port")
+	address       = flag.String("address", "0.0.0.0", "Bind IP Address")
+	port          = flag.String("port", "8080", "Listen Port")
 	waDebug       = flag.String("wadebug", "", "Enable whatsmeow debug (INFO or DEBUG)")
 	logType       = flag.String("logtype", "console", "Type of log output (console or json)")
 	skipMedia     = flag.Bool("skipmedia", false, "Do not attempt to download media in messages")
@@ -158,6 +158,7 @@ func main() {
 	}
 	exPath := filepath.Dir(ex)
 
+	log.Info().Msg("Initializing database...")
 	db, err := InitializeDatabase(exPath)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize database")
@@ -170,6 +171,7 @@ func main() {
 		}
 	}()
 
+	log.Info().Msg("Initializing database schema...")
 	// Initialize the schema
 	if err = initializeSchema(db); err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize schema")
@@ -211,7 +213,12 @@ func main() {
 	}
 	s.routes()
 
-	s.connectOnStartup()
+	// Connect to WhatsApp in background after server starts
+	go func() {
+		// Give the server time to start
+		time.Sleep(2 * time.Second)
+		s.connectOnStartup()
+	}()
 
 	port := os.Getenv("PORT")
 	if port == "" {

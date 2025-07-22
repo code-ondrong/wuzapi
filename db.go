@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -58,7 +59,7 @@ func getDatabaseConfig(exPath string) DatabaseConfig {
 
 func initializePostgres(config DatabaseConfig) (*sqlx.DB, error) {
 	dsn := fmt.Sprintf(
-		"user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
+		"user=%s password=%s dbname=%s host=%s port=%s sslmode=disable connect_timeout=10",
 		config.User, config.Password, config.Name, config.Host, config.Port,
 	)
 
@@ -66,6 +67,11 @@ func initializePostgres(config DatabaseConfig) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
+
+	// Set connection pool settings for better performance
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(30 * time.Minute)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping postgres database: %w", err)
@@ -81,10 +87,15 @@ func initializeSQLite(config DatabaseConfig) (*sqlx.DB, error) {
 	}
 
 	dbPath := filepath.Join(config.Path, "users.db")
-	db, err := sqlx.Open("sqlite", dbPath+"?_pragma=foreign_keys(1)&_busy_timeout=3000")
+	db, err := sqlx.Open("sqlite", dbPath+"?_pragma=foreign_keys(1)&_busy_timeout=3000&_journal_mode=WAL")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
 	}
+
+	// Set connection pool settings for better performance
+	db.SetMaxOpenConns(1) // SQLite works best with single connection
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(30 * time.Minute)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping sqlite database: %w", err)
