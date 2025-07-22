@@ -34,8 +34,8 @@ type server struct {
 
 // Replace the global variables
 var (
-	address       = flag.String("address", "0.0.0.0", "Bind IP Address")
-	port          = flag.String("port", "8080", "Listen Port")
+	address = flag.String("address", "0.0.0.0", "Bind IP Address")
+	// port          = flag.String("port", "8080", "Listen Port")
 	waDebug       = flag.String("wadebug", "", "Enable whatsmeow debug (INFO or DEBUG)")
 	logType       = flag.String("logtype", "console", "Type of log output (console or json)")
 	skipMedia     = flag.Bool("skipmedia", false, "Do not attempt to download media in messages")
@@ -213,8 +213,14 @@ func main() {
 
 	s.connectOnStartup()
 
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
 	srv := &http.Server{
-		Addr:              *address + ":" + *port,
+		Addr:              *address + ":" + port,
 		Handler:           s.router,
 		ReadHeaderTimeout: 20 * time.Second,
 		ReadTimeout:       60 * time.Second,
@@ -269,7 +275,7 @@ func main() {
 			}
 		}
 	}()
-	log.Info().Str("address", *address).Str("port", *port).Msg("Server started. Waiting for connections...")
+	log.Info().Str("address", *address).Str("port", port).Msg("Server started. Waiting for connections...")
 	select {}
 
 }
