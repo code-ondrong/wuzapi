@@ -214,13 +214,18 @@ func main() {
 	s.connectOnStartup()
 
 	port := os.Getenv("PORT")
-
 	if port == "" {
 		port = "8080"
 	}
 
+	// For Heroku, always bind to 0.0.0.0
+	bindAddress := *address
+	if os.Getenv("DYNO") != "" { // Heroku sets DYNO environment variable
+		bindAddress = "0.0.0.0"
+	}
+
 	srv := &http.Server{
-		Addr:              *address + ":" + port,
+		Addr:              bindAddress + ":" + port,
 		Handler:           s.router,
 		ReadHeaderTimeout: 20 * time.Second,
 		ReadTimeout:       60 * time.Second,
@@ -256,6 +261,7 @@ func main() {
 	}()
 
 	go func() {
+		log.Info().Str("bind_address", bindAddress).Str("port", port).Msg("Starting HTTP server...")
 		if *sslcert != "" {
 
 			if *sslcert != "" && *sslprivkey != "" {
@@ -275,7 +281,7 @@ func main() {
 			}
 		}
 	}()
-	log.Info().Str("address", *address).Str("port", port).Msg("Server started. Waiting for connections...")
+	log.Info().Str("address", bindAddress).Str("port", port).Msg("Server started. Waiting for connections...")
 	select {}
 
 }
